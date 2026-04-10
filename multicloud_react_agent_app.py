@@ -137,6 +137,42 @@ def _effective_openai_key(st: object) -> Optional[str]:
     return v.strip() if v and v.strip() else None
 
 
+def _compose_template_question(
+    goal: str,
+    cloud: str,
+    region: str,
+    product_hint: str,
+    traffic: str,
+    availability: str,
+    tf_spec: str,
+) -> str:
+    """사이드바 선택값으로 자연어 질문 한 덩어리 생성."""
+    c = (cloud or "azure").strip().lower()
+    r = (region or "koreacentral").strip()
+    if goal == "가격 조회":
+        ph = (product_hint or "Virtual Machines").strip()
+        return (
+            f"{c.upper()} {r} 리전에서 {ph} 관련 공개 가격(온디맨드·공개 카탈로그)을 조회해 줘. "
+            f"AWS/GCP는 시뮬레이션임을 분명히 하고, 금액은 USD로 알려 줘."
+        )
+    if goal == "월간 유지비 추정":
+        t = (traffic or "100 RPS").strip()
+        a = (availability or "다중 AZ").strip()
+        return (
+            f"트래픽은 {t}, 리전은 {r} (참고: {c.upper()}), 가용성은 {a}로 가정하고 "
+            f"월간 유지비를 USD로 대략 추정해 줘. 공개 카탈로그 기준 참고 추정임을 명시해 줘."
+        )
+    if goal == "Terraform 초안":
+        s = (tf_spec or "").strip() or (
+            "한국 중부 리전, 리소스 그룹·VNet·서브넷만 있는 웹 앱용 최소 구성"
+        )
+        return (
+            f"아래를 확정 사양으로 보고 Terraform 초안(.tf 텍스트)만 만들어 줘. apply/provisioning은 하지 마.\n\n"
+            f"사양: {s}"
+        )
+    return ""
+
+
 def _ensure_agent(st: object) -> Optional[MulticloudReActAgent]:
     ef = _effective_openai_key(st)
     if not ef:
@@ -180,6 +216,8 @@ def run_streamlit() -> None:
         st.session_state.ui_messages = []
     if "user_openai_key" not in st.session_state:
         st.session_state.user_openai_key = ""
+    if "chat_draft" not in st.session_state:
+        st.session_state.chat_draft = ""
 
     with st.sidebar:
         st.markdown("**OpenAI API 키**")
@@ -207,6 +245,87 @@ def run_streamlit() -> None:
             "- `estimate_monthly_cost`: CalculatorInput 필드만\n"
             "- `generate_terraform_draft`: 확정 사양 문자열"
         )
+        with st.expander("질문 도우미 (템플릿)", expanded=False):
+            st.caption("선택 후 아래 버튼으로 메시지 칸을 채웁니다. 필요하면 본문에서 수정하세요.")
+            tpl_goal = st.radio(
+                "목적",
+                ("가격 조회", "월간 유지비 추정", "Terraform 초안", "자유 질문"),
+                horizontal=False,
+                key="tpl_goal",
+            )
+            cloud_labels = {
+                "azure": "Azure",
+                "aws": "AWS",
+                "gcp": "GCP",
+            }
+            tpl_cloud = st.selectbox(
+                "클라우드",
+                ("azure", "aws", "gcp"),
+                format_func=lambda x: cloud_labels.get(x, x),
+                key="tpl_cloud",
+            )
+            region_presets: List[tuple[str, str]] = [
+                ("Azure 한국 중부 (koreacentral)", "koreacentral"),
+                ("AWS 서울 (ap-northeast-2)", "ap-northeast-2"),
+                ("AWS 북미 (us-east-1)", "us-east-1"),
+                ("GCP 서울 (asia-northeast3)", "asia-northeast3"),
+                ("GCP 아이오와 (us-central1)", "us-central1"),
+                ("직접 입력", "custom"),
+            ]
+            tpl_region_choice = st.selectbox(
+                "리전",
+                options=[x[0] for x in region_presets],
+                key="tpl_region_label",
+            )
+            region_map = dict(region_presets)
+            _label = tpl_region_choice
+            tpl_region = region_map[_label]
+            if tpl_region == "custom":
+                tpl_region = st.text_input(
+                    "리전 코드",
+                    value="koreacentral",
+                    key="tpl_region_custom",
+                ).strip()
+
+            tpl_product = st.text_input(
+                "제품/서비스 힌트 (가격 조회)",
+                value="Virtual Machines",
+                key="tpl_product",
+                help="예: Virtual Machines, Storage",
+            )
+            tpl_traffic = st.text_input(
+                "트래픽 (월비 추정)",
+                value="50 RPS",
+                key="tpl_traffic",
+                help="숫자와 단위: RPS, 일 요청 수, GB/월 등",
+            )
+            tpl_avail = st.radio(
+                "가용성 (월비 추정)",
+                ("단일 AZ", "다중 AZ"),
+                horizontal=True,
+                key="tpl_avail",
+            )
+            tpl_tf = st.text_area(
+                "Terraform 사양 요약",
+                value="koreacentral, 리소스 그룹·VNet·서브넷, 웹 앱용 최소 구성",
+                height=80,
+                key="tpl_tf",
+            )
+            if st.button("이 설정으로 메시지 칸 채우기", type="secondary"):
+                if tpl_goal == "자유 질문":
+                    st.session_state.chat_draft = ""
+                else:
+                    st.session_state.chat_draft = _compose_template_question(
+                        tpl_goal,
+                        tpl_cloud,
+                        tpl_region,
+                        tpl_product,
+                        tpl_traffic,
+                        tpl_avail,
+                        tpl_tf,
+                    )
+                st.rerun()
+
         if st.button("대화 초기화"):
             if st.session_state.agent is not None:
                 st.session_state.agent.reset()
@@ -236,18 +355,34 @@ def run_streamlit() -> None:
             with st.chat_message(role):
                 st.markdown(text)
 
-        if prompt := st.chat_input("요구사항이나 리전·트래픽을 입력하세요…"):
-            st.session_state.ui_messages.append(("user", prompt))
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            with st.chat_message("assistant"):
+        st.markdown("**메시지** (사이드바 템플릿으로 채우거나 직접 입력)")
+        st.text_area(
+            "메시지 본문",
+            label_visibility="collapsed",
+            height=120,
+            key="chat_draft",
+            placeholder="예: Azure koreacentral에서 VM 가격을 USD로 알려줘 …",
+        )
+        send_col1, send_col2 = st.columns([1, 5])
+        with send_col1:
+            do_send = st.button("전송", type="primary", use_container_width=True)
+        with send_col2:
+            st.caption("전송 후 아래에 답변이 쌓입니다.")
+
+        if do_send:
+            prompt = str(st.session_state.get("chat_draft", "")).strip()
+            if prompt:
                 with st.spinner("ReAct 실행 중…"):
                     try:
                         reply = agent.chat(prompt)
                     except Exception as e:
                         reply = f"오류: {e}"
-                st.markdown(reply)
-            st.session_state.ui_messages.append(("assistant", reply))
+                st.session_state.ui_messages.append(("user", prompt))
+                st.session_state.ui_messages.append(("assistant", reply))
+                st.session_state.chat_draft = ""
+                st.rerun()
+            else:
+                st.warning("메시지를 입력하거나 사이드바에서 템플릿을 채운 뒤 전송하세요.")
 
 
 def _main() -> None:
