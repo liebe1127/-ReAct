@@ -100,9 +100,28 @@ streamlit run multicloud_react_agent_app.py
 
 ## Streamlit Community Cloud 배포
 
-1. [share.streamlit.io](https://share.streamlit.io)에서 이 GitHub 저장소를 연결합니다.  
-2. **Main file path:** `multicloud_react_agent_app.py`  
-3. **Secrets**에 `OPENAI_API_KEY` 및 (선택) `OPENAI_MODEL`을 설정합니다.
+배포 화면: **[share.streamlit.io/deploy](https://share.streamlit.io/deploy)** (또는 [share.streamlit.io](https://share.streamlit.io) 로그인 후 **New app**)
+
+| 단계 | 할 일 |
+|------|--------|
+| 1 | GitHub로 Streamlit에 로그인하고, **저장소 접근 권한**을 Streamlit 앱에 허용합니다. |
+| 2 | **Repository**에서 `liebe1127/-ReAct` 를 선택합니다. (목록에 없으면 **Configure**에서 조직/계정 권한을 다시 허용) |
+| 3 | **Branch:** `main` |
+| 4 | **Main file path:** `multicloud_react_agent_app.py` (이 저장소 루트에 앱 파일이 있음) |
+| 5 | **Advanced settings** → **Python version** 은 기본값이면 보통 충분합니다. **Requirements file** 은 비워 두면 루트의 `requirements.txt` 가 사용됩니다. |
+| 6 | **Deploy** 를 누릅니다. 빌드가 끝나면 `*.streamlit.app` 형태의 URL이 열립니다. |
+
+### Secrets (필수)
+
+앱이 동작하려면 OpenAI 키가 필요합니다. 배포된 앱 대시보드에서 **Settings → Secrets** 에 아래처럼 넣습니다(TOML 형식).
+
+```toml
+OPENAI_API_KEY = "sk-..."
+# 선택
+OPENAI_MODEL = "gpt-4o-mini"
+```
+
+저장 후 앱을 **Reboot** 하거나 잠시 기다리면 반영됩니다. 로컬 `.env` 는 GitHub에 없으므로 **Cloud에서는 Secrets만** 사용합니다.
 
 ---
 
