@@ -1,0 +1,9 @@
+# 멀티클라우드 Streamlit 앱 전용 (GitHub / Streamlit Cloud)
+python-dotenv>=1.0.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langgraph>=0.2.0
+typing_extensions>=4.12.0
+streamlit>=1.40.0
+pydantic>=2.0.0
