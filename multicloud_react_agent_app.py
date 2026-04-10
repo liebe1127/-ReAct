@@ -128,11 +128,32 @@ def _inject_openai_secrets_from_streamlit(st: object) -> None:
         pass
 
 
+def _effective_openai_key(st: object) -> Optional[str]:
+    """사이드바 입력 > 환경변수/Secrets 순."""
+    u = str(st.session_state.get("user_openai_key", "")).strip()
+    if u:
+        return u
+    v = os.getenv("OPENAI_API_KEY")
+    return v.strip() if v and v.strip() else None
+
+
 def _ensure_agent(st: object) -> Optional[MulticloudReActAgent]:
+    ef = _effective_openai_key(st)
+    if not ef:
+        st.session_state.agent = None
+        st.session_state._agent_bound_key = None
+        return None
+
+    prev = st.session_state.get("_agent_bound_key")
+    if prev != ef:
+        st.session_state.agent = None
+        st.session_state.ui_messages = []
+        st.session_state._agent_bound_key = ef
+
     if st.session_state.agent is not None:
         return st.session_state.agent
-    if not os.getenv("OPENAI_API_KEY"):
-        return None
+
+    os.environ["OPENAI_API_KEY"] = ef
     st.session_state.agent = MulticloudReActAgent()
     return st.session_state.agent
 
@@ -157,8 +178,24 @@ def run_streamlit() -> None:
         st.session_state.agent = None
     if "ui_messages" not in st.session_state:
         st.session_state.ui_messages = []
+    if "user_openai_key" not in st.session_state:
+        st.session_state.user_openai_key = ""
 
     with st.sidebar:
+        st.markdown("**OpenAI API 키**")
+        st.text_input(
+            "아래에 키를 입력하세요",
+            type="password",
+            key="user_openai_key",
+            placeholder="sk-...",
+            help="브라우저에만 유지되며 서버 로그에 출력하지 않습니다. "
+            "비워 두면 .env / Streamlit Secrets의 OPENAI_API_KEY를 사용합니다.",
+        )
+        st.caption(
+            "키는 세션 메모리에만 있으며, 저장소에 커밋되지 않습니다. "
+            "공용 배포 시 본인 키 사용에 유의하세요."
+        )
+        st.markdown("---")
         st.markdown("**안내**")
         st.info(
             "모든 금액은 **USD** 기준 **참고 추정**입니다. "
@@ -179,11 +216,10 @@ def run_streamlit() -> None:
     agent = _ensure_agent(st)
     if agent is None:
         st.warning(
-            "**OPENAI_API_KEY**가 없습니다.\n\n"
-            f"- **로컬:** `{_APP_DIR}` 또는 상위 폴더의 `.env`에 "
-            "`OPENAI_API_KEY=sk-...` 를 넣고 새로고침하세요.\n"
-            "- **Streamlit Cloud:** 앱 설정 → **Secrets**에 "
-            "`OPENAI_API_KEY` / (선택) `OPENAI_MODEL` 을 TOML 형식으로 추가하세요."
+            "**OpenAI API 키**가 필요합니다.\n\n"
+            "- **왼쪽 사이드바**에 본인의 `OPENAI_API_KEY`를 입력하거나,\n"
+            f"- **로컬:** `{_APP_DIR}` 또는 상위 폴더 `.env`에 설정하거나,\n"
+            "- **Streamlit Cloud:** 앱 **Secrets**에 `OPENAI_API_KEY`를 넣어 주세요."
         )
         st.stop()
 
