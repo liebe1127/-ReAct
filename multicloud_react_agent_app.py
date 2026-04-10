@@ -63,6 +63,58 @@ class MulticloudReActAgent:
         self.history = []
 
 
+def _inject_sky_cloud_theme_css(st: object) -> None:
+    """하늘색 그라데이션 + 구름 느낌(방사형 그라데이션) 배경."""
+    st.markdown(
+        """
+<style>
+  /* 전체 앱: 하늘 그라데이션 + 반복 구름(흰색 타원 레이어) */
+  .stApp {
+    background:
+      radial-gradient(ellipse 260px 100px at 48% 12%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.35) 52%, transparent 72%),
+      radial-gradient(ellipse 200px 85px at 8% 28%, rgba(255,255,255,0.78) 0%, transparent 68%),
+      radial-gradient(ellipse 220px 90px at 92% 22%, rgba(255,255,255,0.72) 0%, transparent 68%),
+      radial-gradient(ellipse 180px 75px at 22% 48%, rgba(255,255,255,0.55) 0%, transparent 65%),
+      radial-gradient(ellipse 210px 80px at 78% 52%, rgba(255,255,255,0.5) 0%, transparent 65%),
+      radial-gradient(ellipse 160px 65px at 55% 72%, rgba(255,255,255,0.4) 0%, transparent 62%),
+      linear-gradient(180deg, #4da6d9 0%, #6eb8e8 18%, #8ec9f0 38%, #b8ddf7 62%, #d9eefb 82%, #eef8fc 100%) !important;
+    background-attachment: fixed;
+  }
+  [data-testid="stSidebar"] {
+    background: linear-gradient(185deg, rgba(232,248,255,0.97) 0%, rgba(200,230,250,0.92) 100%) !important;
+    border-right: 1px solid rgba(80, 140, 200, 0.18);
+  }
+  [data-testid="stHeader"] {
+    background: rgba(255,255,255,0.35);
+    backdrop-filter: blur(8px);
+  }
+  .main .block-container {
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+  }
+  /* 채팅 말풍선: 살짝 유리 느낌 */
+  [data-testid="stChatMessage"] {
+    background: rgba(255,255,255,0.72) !important;
+    border: 1px solid rgba(100, 160, 220, 0.2);
+    border-radius: 14px;
+    backdrop-filter: blur(6px);
+    margin-bottom: 0.5rem;
+  }
+  div[data-testid="stChatInput"] {
+    border-radius: 12px;
+    border: 1px solid rgba(80, 140, 200, 0.25);
+    background: rgba(255,255,255,0.85);
+  }
+  h1 {
+    color: #0d47a1 !important;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+  }
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 def _inject_openai_secrets_from_streamlit(st: object) -> None:
     """Streamlit Community Cloud 등: 대시보드 Secrets를 os.environ에 반영."""
     try:
@@ -94,6 +146,7 @@ def run_streamlit() -> None:
         layout="wide",
     )
     _inject_openai_secrets_from_streamlit(st)
+    _inject_sky_cloud_theme_css(st)
 
     st.title("멀티 클라우드 비용·설계 ReAct")
     st.caption(
