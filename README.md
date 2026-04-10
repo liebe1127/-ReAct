@@ -1,5 +1,7 @@
 # 멀티 클라우드 가격·설계 ReAct (Streamlit)
 
+**저장소:** [github.com/liebe1127/-ReAct](https://github.com/liebe1127/-ReAct)
+
 이 폴더만 복사하거나 이 폴더만 GitHub 저장소로 올리면 됩니다. (노트북·기타 실습 파일 불필요)
 
 ## 포함 파일
@@ -26,7 +28,7 @@ streamlit run multicloud_react_agent_app.py
 
 ## Streamlit Community Cloud
 
-1. GitHub에 **이 폴더만** 푸시한 저장소를 연결합니다.
+1. [share.streamlit.io](https://share.streamlit.io)에서 이 GitHub 저장소를 연결합니다.
 2. Main file path: `multicloud_react_agent_app.py` (저장소 루트가 `multicloud-app`인 경우)
 3. Secrets에 `OPENAI_API_KEY` (및 선택 `OPENAI_MODEL`)를 설정합니다.
 
